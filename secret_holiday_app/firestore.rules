@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isGroupMember(groupId) {
+      return isSignedIn() && 
+             request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Anyone can read user profiles (needed for group members to see each other)
+      allow read: if isSignedIn();
+      // Users can only write their own data
+      allow write: if isOwner(userId);
+    }
+    
+    // Groups collection
+    match /groups/{groupId} {
+      // Group members can read group data
+      allow read: if isGroupMember(groupId);
+      // Only the creator or admin can update group settings
+      allow create: if isSignedIn();
+      allow update: if isGroupMember(groupId);
+      allow delete: if false; // Don't allow deletion for now
+    }
+    
+    // Trips collection (subcollection of groups)
+    match /groups/{groupId}/trips/{tripId} {
+      // Group members can read all trips
+      allow read: if isGroupMember(groupId);
+      // Group members can create trips
+      allow create: if isGroupMember(groupId);
+      // Trip organizer or admin can update
+      allow update: if isGroupMember(groupId);
+      allow delete: if isGroupMember(groupId);
+    }
+    
+    // Chat messages (subcollection of groups)
+    match /groups/{groupId}/chat/{messageId} {
+      // Group members can read chat
+      allow read: if isGroupMember(groupId);
+      // Group members can send messages
+      allow create: if isGroupMember(groupId);
+      // Can only delete own messages
+      allow delete: if isOwner(resource.data.senderId);
+      // Cannot update messages
+      allow update: if false;
+    }
+    
+    // Trip proposals (subcollection of groups - organizer only)
+    match /groups/{groupId}/proposals/{proposalId} {
+      // Only the current organizer can read/write proposals
+      allow read, write: if isSignedIn() && 
+                            request.auth.uid == get(/databases/$(database)/documents/groups/$(groupId)).data.currentOrganizerId;
+    }
+  }
+}

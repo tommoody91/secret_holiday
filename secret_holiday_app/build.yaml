@@ -1,0 +1,11 @@
+# Build configuration for code generation
+targets:
+  $default:
+    builders:
+      mockito|builder:
+        generate_for:
+          - test/**/*_test.dart
+        options:
+          # Generate mocks for these classes used in tests
+          # This will create mock classes that we can use for testing
+          # without needing real Firebase instances

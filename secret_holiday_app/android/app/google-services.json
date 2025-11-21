@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "744352475732",
+    "project_id": "secret-holiday",
+    "storage_bucket": "secret-holiday.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:744352475732:android:be9e04291a3738e50a5bc1",
+        "android_client_info": {
+          "package_name": "com.poncha25.secret_holiday"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCK8-9_7lplVm3azEvR_Tz2EHIVT21F7BQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
