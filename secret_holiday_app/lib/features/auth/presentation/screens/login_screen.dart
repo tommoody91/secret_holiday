@@ -42,18 +42,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
 
-      // Check if login was successful by checking the state
-      final authState = ref.read(authProvider);
-      
-      if (authState.hasError) {
-        SnackBarHelper.showError(
-          context,
-          authState.error.toString().replaceAll('Exception: ', ''),
-        );
-      } else {
-        context.go(RouteConstants.home);
-      }
-    } catch (e) {
+      // Navigate on success - the auth state listener will handle the rest
+      context.go(RouteConstants.home);
+    } on Exception catch (e) {
       AppLogger.error('Login error', e);
       if (mounted) {
         SnackBarHelper.showError(

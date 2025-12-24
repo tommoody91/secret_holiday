@@ -8,6 +8,8 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../groups/providers/group_provider.dart';
 import '../../data/models/trip_model.dart';
 import '../../providers/trip_provider.dart';
+import '../widgets/itinerary_tab.dart';
+import '../widgets/memories_tab.dart';
 
 class TripDetailsScreen extends ConsumerStatefulWidget {
   final String groupId;
@@ -30,7 +32,7 @@ class _TripDetailsScreenState extends ConsumerState<TripDetailsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -261,6 +263,7 @@ class _TripDetailsScreenState extends ConsumerState<TripDetailsScreen>
               indicatorColor: AppColors.primary,
               tabs: const [
                 Tab(text: 'Overview'),
+                Tab(text: 'Itinerary'),
                 Tab(text: 'Memories'),
                 Tab(text: 'Expenses'),
               ],
@@ -274,6 +277,7 @@ class _TripDetailsScreenState extends ConsumerState<TripDetailsScreen>
             controller: _tabController,
             children: [
               _buildOverviewTab(context, trip),
+              _buildItineraryTab(context, trip),
               _buildMemoriesTab(context, trip),
               _buildExpensesTab(context, trip),
             ],
@@ -569,34 +573,17 @@ class _TripDetailsScreenState extends ConsumerState<TripDetailsScreen>
     );
   }
 
+  Widget _buildItineraryTab(BuildContext context, TripModel trip) {
+    return ItineraryTab(
+      groupId: widget.groupId,
+      trip: trip,
+    );
+  }
+
   Widget _buildMemoriesTab(BuildContext context, TripModel trip) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.photo_library,
-              size: 80,
-              color: AppColors.textSecondary.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Memories Coming Soon',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Memory capture feature will be available in Sprint 5',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-          ],
-        ),
-      ),
+    return MemoriesTab(
+      groupId: widget.groupId,
+      trip: trip,
     );
   }
 

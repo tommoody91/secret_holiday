@@ -379,7 +379,7 @@ A collaborative trip planning app where groups take turns organizing secret holi
 - [ ] Memory deletion (creator or organizer):
   - Confirmation dialog
   - Delete from Firestore
-  - Delete photos from Firebase Storage
+  - Delete photos from AWS S3 via backend API
   - Remove from UI
 
 ---
@@ -444,11 +444,9 @@ A collaborative trip planning app where groups take turns organizing secret holi
   - **Day Notes**:
     - Trip participants can read/write (collaborative)
   
-- [ ] Firebase Storage:
+- [ ] AWS S3 Storage:
   - Path: `groups/{groupId}/trips/{tripId}/memories/{memoryId}/{photoId}.jpg`
-  - Security rules:
-    - Trip participants can read
-    - Trip participants can write to their uploads
+  - Security: IAM-based access control via backend API
   - Image compression on upload:
     - Resize to max 1920px width
     - JPEG quality 85%
@@ -924,7 +922,7 @@ A collaborative trip planning app where groups take turns organizing secret holi
 - [ ] Create `UserRepository`:
   - `getUserProfile()`
   - `updateUserProfile()`
-  - `uploadProfilePicture()` - to Firebase Storage
+  - `uploadProfilePicture()` - to AWS S3 via backend API
   - `updateStatistics()` - triggered by trip/group events
   
 - [ ] Create `UserProvider` with Riverpod
@@ -959,7 +957,7 @@ A collaborative trip planning app where groups take turns organizing secret holi
   - Cancel button
   
 - [ ] Implement profile picture upload:
-  - Firebase Storage path: `users/{userId}/profile.jpg`
+  - AWS S3 path: `users/{userId}/profile.jpg`
   - Image picker (camera or gallery)
   - Crop image to square
   - Compress image
@@ -1305,10 +1303,10 @@ A collaborative trip planning app where groups take turns organizing secret holi
   - Set up backups (daily)
   - Create all composite indexes
   - Configure database location (closest to users)
-- [ ] Configure Firebase Storage:
-  - Set up security rules
+- [ ] Configure AWS S3:
+  - Set up bucket with proper permissions
   - Configure CORS for web access
-  - Set up lifecycle rules (delete old temporary files)
+  - Set up backend API for secure access
 - [ ] Set up Firebase Authentication:
   - Enable email/password provider
   - Configure authorized domains
@@ -1503,7 +1501,7 @@ A collaborative trip planning app where groups take turns organizing secret holi
 **Backend:**
 - Firebase Authentication
 - Firebase Firestore (database)
-- Firebase Storage (images)
+- AWS S3 (photo storage via backend API)
 - Firebase Cloud Functions (AI, notifications)
 - Firebase Cloud Messaging (push notifications)
 

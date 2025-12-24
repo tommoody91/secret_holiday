@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,7 +12,7 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen> 
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -22,69 +21,73 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animations
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
       ),
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
       ),
     );
-    
+
     _controller.forward();
-    
-    // Navigate after delay
+
+    // Navigate after a shorter delay - don't block too long
     _checkAuthAndNavigate();
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Wait for animation to complete
-    await Future.delayed(const Duration(milliseconds: 2000));
-    
+    // Shorter delay for better UX - 1.5 seconds is enough for branding
+    await Future.delayed(const Duration(milliseconds: 1500));
+
     if (!mounted) return;
-    
-    // Check auth state
-    final authState = ref.read(authStateChangesProvider);
-    
-    authState.when(
-      data: (user) {
-        if (user != null) {
-          // User is logged in
-          if (user.emailVerified) {
-            context.go(RouteConstants.home);
-          } else {
-            context.go(RouteConstants.emailVerification);
-          }
+
+    // Listen to auth state with a timeout to prevent infinite waiting
+    const maxWait = Duration(seconds: 3);
+    final startTime = DateTime.now();
+
+    while (mounted) {
+      final authState = ref.read(authStateChangesProvider);
+
+      // Check if we've waited too long
+      if (DateTime.now().difference(startTime) > maxWait) {
+        if (mounted) context.go(RouteConstants.login);
+        return;
+      }
+
+      if (authState.isLoading) {
+        // Still loading, wait a bit
+        await Future.delayed(const Duration(milliseconds: 100));
+        continue;
+      }
+
+      final user = authState.value;
+
+      if (user != null) {
+        // User is logged in
+        if (user.emailVerified) {
+          context.go(RouteConstants.home);
         } else {
-          // No user, go to login
-          context.go(RouteConstants.login);
+          context.go(RouteConstants.emailVerification);
         }
-      },
-      loading: () {
-        // Still loading, wait a bit more
-        Timer(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            context.go(RouteConstants.login);
-          }
-        });
-      },
-      error: (_, __) {
-        // Error occurred, go to login
+      } else {
+        // No user, go to login
         context.go(RouteConstants.login);
-      },
-    );
+      }
+      return;
+    }
   }
 
   @override
@@ -96,17 +99,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              theme.colorScheme.primary,
-              theme.colorScheme.secondary,
-            ],
+            colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
           ),
         ),
         child: Center(
@@ -142,7 +142,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 32),
-                      
+
                       // App Name
                       Text(
                         'Secret Holiday',
@@ -153,7 +153,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      
+
                       // Tagline
                       Text(
                         'Plan. Surprise. Explore.',
@@ -163,7 +163,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 48),
-                      
+
                       // Loading Indicator
                       SizedBox(
                         width: 40,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/route_constants.dart';
 import '../presentation/widgets/widgets.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
@@ -17,53 +18,74 @@ import '../../features/timeline/presentation/screens/add_trip_screen.dart';
 import '../../features/timeline/presentation/screens/edit_trip_screen.dart';
 import '../../features/timeline/presentation/screens/trip_details_screen.dart';
 import '../../features/timeline/data/models/trip_model.dart';
+import '../../features/debug/presentation/widgets/s3_test_widget.dart';
 
 /// Router configuration provider with auth state management
+/// Using keepAlive to prevent recreation on every navigation
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateChangesProvider);
-  
+  // Use listen instead of watch to avoid rebuilding the entire router
+  // on every auth state change - the redirect handles this more efficiently
+  final authStateNotifier = ValueNotifier<AsyncValue<User?>>(
+    const AsyncValue.loading(),
+  );
+
+  // Listen to auth changes without rebuilding the router
+  ref.listen(authStateChangesProvider, (_, next) {
+    authStateNotifier.value = next;
+  });
+
   return GoRouter(
     initialLocation: RouteConstants.splash,
-    debugLogDiagnostics: true,
-    refreshListenable: authState.maybeWhen(
-      data: (user) => GoRouterRefreshStream(Stream.value(user)),
-      orElse: () => null,
-    ),
+    debugLogDiagnostics: false, // Disable in production for performance
+    refreshListenable: authStateNotifier,
     redirect: (context, state) {
+      final authState = authStateNotifier.value;
+
       final isAuthRoute = [
         RouteConstants.splash,
         RouteConstants.login,
         RouteConstants.signup,
         RouteConstants.forgotPassword,
       ].contains(state.matchedLocation);
-      
-      final isEmailVerificationRoute = state.matchedLocation == RouteConstants.emailVerification;
-      
+
+      final isEmailVerificationRoute =
+          state.matchedLocation == RouteConstants.emailVerification;
+
+      // If still loading auth state, stay on current route
+      if (authState.isLoading) {
+        return null;
+      }
+
       // Get current auth state
       final user = authState.value;
       final isLoggedIn = user != null;
       final isEmailVerified = user?.emailVerified ?? false;
-      
+
       // If on splash, let it handle navigation
       if (state.matchedLocation == RouteConstants.splash) {
         return null;
       }
-      
+
       // If not logged in and not on auth route, redirect to login
       if (!isLoggedIn && !isAuthRoute) {
         return RouteConstants.login;
       }
-      
+
       // If logged in but email not verified, redirect to verification
-      if (isLoggedIn && !isEmailVerified && !isEmailVerificationRoute && !isAuthRoute) {
+      if (isLoggedIn &&
+          !isEmailVerified &&
+          !isEmailVerificationRoute &&
+          !isAuthRoute) {
         return RouteConstants.emailVerification;
       }
-      
+
       // If logged in with verified email and on auth route, go to home
-      if (isLoggedIn && isEmailVerified && (isAuthRoute || isEmailVerificationRoute)) {
+      if (isLoggedIn &&
+          isEmailVerified &&
+          (isAuthRoute || isEmailVerificationRoute)) {
         return RouteConstants.home;
       }
-      
+
       return null;
     },
     routes: [
@@ -73,7 +95,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      
+
       // Auth Routes
       GoRoute(
         path: RouteConstants.login,
@@ -95,14 +117,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'emailVerification',
         builder: (context, state) => const EmailVerificationScreen(),
       ),
-      
+
       // Main App Routes
       GoRoute(
         path: RouteConstants.home,
         name: 'home',
         builder: (context, state) => const MainScaffold(),
       ),
-      
+
       // Group Routes
       GoRoute(
         path: RouteConstants.groupSelection,
@@ -126,7 +148,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/group-settings/:groupId',
         name: 'groupSettings',
         builder: (context, state) {
-          final groupId = state.pathParameters['groupId']!;
+          final groupId = state.pathParameters['groupId'];
+          if (groupId == null) {
+            throw Exception('Group ID is required for group settings');
+          }
           return GroupSettingsScreen(groupId: groupId);
         },
       ),
@@ -134,17 +159,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/group-settings/:groupId/edit',
         name: 'editGroupSettings',
         builder: (context, state) {
-          final groupId = state.pathParameters['groupId']!;
+          final groupId = state.pathParameters['groupId'];
+          if (groupId == null) {
+            throw Exception('Group ID is required for editing group settings');
+          }
           return EditGroupSettingsScreen(groupId: groupId);
         },
       ),
-      
+
       // Trip Routes
       GoRoute(
         path: '/add-trip',
         name: 'addTrip',
         builder: (context, state) {
-          final groupId = state.uri.queryParameters['groupId']!;
+          final groupId = state.uri.queryParameters['groupId'];
+          if (groupId == null) {
+            throw Exception('Group ID is required for adding a trip');
+          }
           return AddTripScreen(groupId: groupId);
         },
       ),
@@ -162,11 +193,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/trip/:tripId',
         name: 'tripDetails',
         builder: (context, state) {
-          final tripId = state.pathParameters['tripId']!;
+          final tripId = state.pathParameters['tripId'];
+          if (tripId == null) {
+            throw Exception('Trip ID is required for trip details');
+          }
           final extra = state.extra as Map<String, dynamic>?;
-          final groupId = extra?['groupId'] as String? ?? state.uri.queryParameters['groupId']!;
+          final groupId =
+              extra?['groupId'] as String? ??
+              state.uri.queryParameters['groupId'];
+          if (groupId == null) {
+            throw Exception('Group ID is required for trip details');
+          }
           return TripDetailsScreen(groupId: groupId, tripId: tripId);
         },
+      ),
+
+      // Debug Routes
+      GoRoute(
+        path: '/debug/s3-test',
+        name: 's3Test',
+        builder: (context, state) => const S3TestWidget(),
       ),
     ],
     errorBuilder: (context, state) => ErrorScreen(error: state.error),
@@ -194,12 +240,12 @@ class GoRouterRefreshStream extends ChangeNotifier {
 // Placeholder screens for unimplemented features
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
-  
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final userGroupsAsync = ref.watch(userGroupsProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Secret Holiday Planner'),
@@ -232,123 +278,124 @@ class HomeScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                const SizedBox(height: 40),
-                Icon(
-                  Icons.flight_takeoff,
-                  size: 80,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Welcome!',
-                  style: theme.textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
+                  const SizedBox(height: 40),
+                  Icon(
+                    Icons.flight_takeoff,
+                    size: 80,
+                    color: theme.colorScheme.primary,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Start planning your secret holiday adventures',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 24),
+                  Text(
+                    'Welcome!',
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 60),
-                
-                // Group count indicator
-                userGroupsAsync.when(
-                  data: (groups) => groups.isEmpty 
-                    ? Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.group_add,
-                                size: 48,
-                                color: theme.colorScheme.primary,
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start planning your secret holiday adventures',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 60),
+
+                  // Group count indicator
+                  userGroupsAsync.when(
+                    data: (groups) => groups.isEmpty
+                        ? Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.group_add,
+                                    size: 48,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No Groups Yet',
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Create or join a group to get started',
+                                    style: theme.textTheme.bodySmall,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No Groups Yet',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Create or join a group to get started',
-                                style: theme.textTheme.bodySmall,
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.groups,
-                                size: 40,
-                                color: theme.colorScheme.primary,
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Your Groups',
-                                      style: theme.textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                            ),
+                          )
+                        : Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.groups,
+                                    size: 40,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Your Groups',
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        Text(
+                                          '${groups.length} ${groups.length == 1 ? 'group' : 'groups'}',
+                                          style: theme.textTheme.bodyMedium,
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      '${groups.length} ${groups.length == 1 ? 'group' : 'groups'}',
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ],
                               ),
-                              Icon(
-                                Icons.chevron_right,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                PrimaryButton(
-                  text: 'My Groups',
-                  onPressed: () => context.go(RouteConstants.groupSelection),
-                  icon: Icons.group,
-                ),
-                const SizedBox(height: 12),
-                PrimaryButton(
-                  text: 'Create Group',
-                  onPressed: () => context.go(RouteConstants.createGroup),
-                  icon: Icons.add,
-                ),
-                const SizedBox(height: 12),
-                SecondaryButton(
-                  text: 'Join Group',
-                  onPressed: () => context.go(RouteConstants.joinGroup),
-                  icon: Icons.link,
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  PrimaryButton(
+                    text: 'My Groups',
+                    onPressed: () => context.go(RouteConstants.groupSelection),
+                    icon: Icons.group,
+                  ),
+                  const SizedBox(height: 12),
+                  PrimaryButton(
+                    text: 'Create Group',
+                    onPressed: () => context.go(RouteConstants.createGroup),
+                    icon: Icons.add,
+                  ),
+                  const SizedBox(height: 12),
+                  SecondaryButton(
+                    text: 'Join Group',
+                    onPressed: () => context.go(RouteConstants.joinGroup),
+                    icon: Icons.link,
+                  ),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ),
@@ -359,15 +406,17 @@ class HomeScreen extends ConsumerWidget {
 
 class ErrorScreen extends StatelessWidget {
   final Exception? error;
-  
+
   const ErrorScreen({super.key, this.error});
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Error')),
       body: Center(
-        child: Text('An error occurred: ${error?.toString() ?? "Unknown error"}'),
+        child: Text(
+          'An error occurred: ${error?.toString() ?? "Unknown error"}',
+        ),
       ),
     );
   }

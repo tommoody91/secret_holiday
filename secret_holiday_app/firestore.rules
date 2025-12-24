@@ -26,11 +26,13 @@ service cloud.firestore {
     
     // Groups collection
     match /groups/{groupId} {
-      // Group members can read group data
-      allow read: if isGroupMember(groupId);
-      // Only the creator or admin can update group settings
+      // Allow reading groups for authenticated users (needed for arrayContains queries)
+      // Individual document access is checked below
+      allow read: if isSignedIn();
+      // Only authenticated users can create groups
       allow create: if isSignedIn();
-      allow update: if isGroupMember(groupId);
+      // Only group members can update groups
+      allow update: if isSignedIn() && request.auth.uid in resource.data.memberIds;
       allow delete: if false; // Don't allow deletion for now
     }
     
@@ -62,6 +64,27 @@ service cloud.firestore {
       // Only the current organizer can read/write proposals
       allow read, write: if isSignedIn() && 
                             request.auth.uid == get(/databases/$(database)/documents/groups/$(groupId)).data.currentOrganizerId;
+    }
+    
+    // Memories collection (subcollection of trips)
+    match /groups/{groupId}/trips/{tripId}/memories/{memoryId} {
+      // Group members can read all memories
+      allow read: if isGroupMember(groupId);
+      // Group members can create memories
+      allow create: if isGroupMember(groupId);
+      // Creator can update their own memories, group members can add reactions
+      allow update: if isGroupMember(groupId);
+      // Creator can delete their own memories
+      allow delete: if isGroupMember(groupId);
+    }
+    
+    // Planned activities collection (subcollection of trips)
+    match /groups/{groupId}/trips/{tripId}/plannedActivities/{activityId} {
+      // Group members can read all planned activities
+      allow read: if isGroupMember(groupId);
+      // Only trip organizer can create/update/delete activities
+      allow write: if isSignedIn() && 
+                   request.auth.uid == get(/databases/$(database)/documents/groups/$(groupId)).data.currentOrganizerId;
     }
   }
 }

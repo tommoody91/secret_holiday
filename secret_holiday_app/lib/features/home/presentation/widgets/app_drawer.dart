@@ -246,6 +246,22 @@ class AppDrawer extends ConsumerWidget {
           
           const Divider(height: 1),
 
+          // TEMPORARY: S3 Test Button (remove after testing)
+          ListTile(
+            leading: const Icon(Icons.cloud_upload, color: Colors.orange),
+            title: const Text(
+              '🧪 Test S3 (DEBUG)',
+              style: TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              context.push('/debug/s3-test');
+            },
+          ),
+
           // Logout
           ListTile(
             leading: const Icon(Icons.logout, color: AppColors.error),
