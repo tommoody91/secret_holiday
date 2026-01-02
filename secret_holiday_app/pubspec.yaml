@@ -56,10 +56,9 @@ dependencies:
   shared_preferences: ^2.3.3
   path_provider: ^2.1.4
   
-  # Map Integration - DEFER UNTIL SPRINT 9
-  # google_maps_flutter: ^2.9.0
-  # flutter_map: ^8.2.2
-  # latlong2: ^0.9.1
+  # Map Integration
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
   
   # Image & Media
   cached_network_image: ^3.4.1
@@ -83,8 +82,14 @@ dependencies:
   # Image compression
   flutter_image_compress: ^2.4.0
   
+  # URL Launcher for external links
+  url_launcher: ^6.2.5
+  
   # AWS S3 Storage (using HTTP client)
   crypto: ^3.0.3
+  
+  # Archive/compression utilities
+  archive: ^4.0.4
 
 dev_dependencies:
   flutter_test:
@@ -111,6 +116,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Destination data files (gzipped JSON)
+  assets:
+    - assets/data/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

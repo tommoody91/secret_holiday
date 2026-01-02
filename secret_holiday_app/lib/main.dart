@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/config/firebase_options.dart';
+import 'core/data/destination_repository.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
 import 'core/router/app_router.dart';
@@ -35,11 +36,15 @@ class _FirebaseInitWrapperState extends State<FirebaseInitWrapper> {
 
   Future<void> _initializeFirebase() async {
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      // Initialize Firebase and destination data in parallel
+      await Future.wait([
+        Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        ),
+        DestinationRepository.instance.initialize(),
+      ]);
       if (kDebugMode) {
-        AppLogger.info('Firebase initialized successfully');
+        AppLogger.info('Firebase and destinations initialized successfully');
       }
       if (mounted) {
         setState(() {
@@ -47,7 +52,7 @@ class _FirebaseInitWrapperState extends State<FirebaseInitWrapper> {
         });
       }
     } catch (e, stackTrace) {
-      AppLogger.error('Failed to initialize Firebase', e, stackTrace);
+      AppLogger.error('Failed to initialize app', e, stackTrace);
       if (mounted) {
         setState(() {
           _error = e.toString();

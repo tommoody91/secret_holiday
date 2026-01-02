@@ -59,6 +59,7 @@ GroupModel _$GroupModelFromJson(Map<String, dynamic> json) => GroupModel(
       .toList(),
   rules: GroupRules.fromJson(json['rules'] as Map<String, dynamic>),
   inviteCode: json['inviteCode'] as String,
+  photoUrl: json['photoUrl'] as String?,
   upcomingTripStartDate: json['upcomingTripStartDate'] == null
       ? null
       : DateTime.parse(json['upcomingTripStartDate'] as String),
@@ -80,6 +81,7 @@ Map<String, dynamic> _$GroupModelToJson(
   'memberIds': instance.memberIds,
   'rules': instance.rules.toJson(),
   'inviteCode': instance.inviteCode,
+  'photoUrl': instance.photoUrl,
   'upcomingTripStartDate': instance.upcomingTripStartDate?.toIso8601String(),
   'upcomingTripEndDate': instance.upcomingTripEndDate?.toIso8601String(),
   'createdAt': GroupModel._timestampToJson(instance.createdAt),

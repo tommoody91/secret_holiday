@@ -1,8 +1,16 @@
+import 'dart:io';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/data/destination_repository.dart';
+import '../../../../core/providers/destination_provider.dart';
 import '../../../../core/presentation/widgets/widgets.dart';
+import '../../../../core/presentation/widgets/s3_image.dart';
+import '../../../../core/services/photo_upload_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/trip_model.dart';
 import '../../providers/trip_provider.dart';
@@ -32,13 +40,16 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
   late DateTime _startDate;
   late DateTime _endDate;
   bool _isLoading = false;
-
-  // Trip preferences (0-100 scale)
-  late double _adventurousness;
-  late double _foodFocus;
-  late double _urbanVsNature;
-  late double _budgetFlexibility;
-  late double _pacePreference;
+  
+  // Cover photo
+  File? _newCoverPhoto;  // New photo to upload
+  String? _existingPhotoUrl;  // Current photo URL from trip
+  bool _photoRemoved = false;  // Track if user wants to remove photo
+  
+  // Track destination selection for coordinates
+  Destination? _selectedDestination;
+  double? _updatedLatitude;
+  double? _updatedLongitude;
 
   @override
   void initState() {
@@ -50,11 +61,23 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
     _budgetController = TextEditingController(text: widget.trip.costPerPerson.toString());
     _startDate = widget.trip.startDate;
     _endDate = widget.trip.endDate;
-    _adventurousness = widget.trip.adventurousness.toDouble();
-    _foodFocus = widget.trip.foodFocus.toDouble();
-    _urbanVsNature = widget.trip.urbanVsNature.toDouble();
-    _budgetFlexibility = widget.trip.budgetFlexibility.toDouble();
-    _pacePreference = widget.trip.pacePreference.toDouble();
+    _existingPhotoUrl = widget.trip.coverPhotoUrl;
+    
+    // Check if existing coordinates are valid (not 0,0)
+    // If invalid, try to look them up from the destination name
+    if (widget.trip.location.latitude == 0.0 && widget.trip.location.longitude == 0.0) {
+      final repository = DestinationRepository.instance;
+      if (repository.isLoaded) {
+        final coords = repository.getCoordinates(
+          widget.trip.location.destination,
+          widget.trip.location.country,
+        );
+        if (coords != null) {
+          _updatedLatitude = coords.$1;
+          _updatedLongitude = coords.$2;
+        }
+      }
+    }
   }
 
   @override
@@ -109,8 +132,45 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Upload new cover photo if selected
+      String? coverPhotoUrl;
+      if (_newCoverPhoto != null) {
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (!mounted) return;
+        
+        if (token != null) {
+          final result = await PhotoUploadService.uploadPhoto(
+            file: _newCoverPhoto!,
+            tripId: 'cover_${DateTime.now().millisecondsSinceEpoch}',
+            authToken: token,
+          );
+          if (!mounted) return;
+          
+          if (result.success && result.url != null) {
+            coverPhotoUrl = result.url;
+          }
+        }
+      } else if (!_photoRemoved && _existingPhotoUrl != null) {
+        // Keep the existing photo
+        coverPhotoUrl = _existingPhotoUrl;
+      }
+      // If _photoRemoved is true and _newCoverPhoto is null, coverPhotoUrl stays null
+      
       // Read the notifier before async operations to avoid using disposed ref
       final notifier = ref.read(tripProvider.notifier);
+      
+      // Determine which coordinates to use
+      // Priority: 1. Selected destination from autocomplete, 2. Looked up coords, 3. Original trip coords
+      double finalLatitude = widget.trip.location.latitude;
+      double finalLongitude = widget.trip.location.longitude;
+      
+      if (_selectedDestination != null) {
+        finalLatitude = _selectedDestination!.latitude;
+        finalLongitude = _selectedDestination!.longitude;
+      } else if (_updatedLatitude != null && _updatedLongitude != null) {
+        finalLatitude = _updatedLatitude!;
+        finalLongitude = _updatedLongitude!;
+      }
       
       await notifier.updateTrip(
         groupId: widget.groupId,
@@ -118,18 +178,20 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
         tripName: _tripNameController.text.trim(),
         destination: _destinationController.text.trim(),
         country: _countryController.text.trim(),
-        countryCode: widget.trip.location.countryCode, // Keep existing
+        countryCode: _selectedDestination?.countryCode ?? widget.trip.location.countryCode,
         startDate: _startDate,
         endDate: _endDate,
         summary: _summaryController.text.trim(),
         budgetPerPerson: int.parse(_budgetController.text.trim()),
-        latitude: widget.trip.location.latitude,
-        longitude: widget.trip.location.longitude,
-        adventurousness: _adventurousness.round(),
-        foodFocus: _foodFocus.round(),
-        urbanVsNature: _urbanVsNature.round(),
-        budgetFlexibility: _budgetFlexibility.round(),
-        pacePreference: _pacePreference.round(),
+        coverPhotoUrl: coverPhotoUrl,
+        latitude: finalLatitude,
+        longitude: finalLongitude,
+        // Keep existing preferences (or defaults) - these are managed via AI Planning
+        adventurousness: widget.trip.adventurousness,
+        foodFocus: widget.trip.foodFocus,
+        urbanVsNature: widget.trip.urbanVsNature,
+        budgetFlexibility: widget.trip.budgetFlexibility,
+        pacePreference: widget.trip.pacePreference,
       );
 
       if (!mounted) return;
@@ -169,6 +231,10 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Cover Photo Section
+            _buildCoverPhotoSection(theme),
+            const SizedBox(height: 24),
+            
             // Trip Name
             CustomTextField(
               controller: _tripNameController,
@@ -184,17 +250,86 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Destination
-            CustomTextField(
-              controller: _destinationController,
-              label: 'Destination',
-              hint: 'e.g., Paris, Tokyo, New York',
-              prefixIcon: Icons.location_on,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Destination is required';
+            // Destination with Autocomplete
+            Autocomplete<Destination>(
+              initialValue: TextEditingValue(text: widget.trip.location.destination),
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                if (textEditingValue.text.isEmpty || textEditingValue.text.length < 2) {
+                  return const Iterable<Destination>.empty();
                 }
-                return null;
+                final repository = ref.read(destinationRepositoryProvider);
+                if (!repository.isLoaded) return const Iterable<Destination>.empty();
+                return repository.search(textEditingValue.text, limit: 5);
+              },
+              displayStringForOption: (Destination option) => option.displayName,
+              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                // Sync with our controller
+                if (_destinationController.text != controller.text && _selectedDestination == null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _destinationController.text = controller.text;
+                  });
+                }
+                return CustomTextField(
+                  controller: controller,
+                  label: 'Destination',
+                  hint: 'e.g., Paris, Tokyo, New York',
+                  prefixIcon: Icons.location_on,
+                  onChanged: (value) {
+                    _destinationController.text = value;
+                    // Clear selected destination when user types
+                    _selectedDestination = null;
+                  },
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Destination is required';
+                    }
+                    return null;
+                  },
+                );
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width - 32,
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        itemCount: options.length,
+                        itemBuilder: (context, index) {
+                          final option = options.elementAt(index);
+                          return ListTile(
+                            leading: Text(
+                              option.countryCode.toUpperCase(),
+                              style: const TextStyle(fontSize: 20),
+                            ),
+                            title: Text(option.city),
+                            subtitle: Text(option.country),
+                            onTap: () {
+                              onSelected(option);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+              onSelected: (Destination selection) {
+                _selectedDestination = selection;
+                _destinationController.text = selection.city;
+                _countryController.text = selection.country;
+                // Clear manually updated coords since we now have a proper selection
+                _updatedLatitude = null;
+                _updatedLongitude = null;
               },
             ),
             const SizedBox(height: 16),
@@ -295,69 +430,10 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
-            // Trip Preferences Section
-            Text(
-              'Trip Preferences',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Set preferences for this specific trip',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Adventurousness
-            _buildPreferenceSlider(
-              label: 'Adventure Level',
-              value: _adventurousness,
-              leftLabel: 'Relaxing',
-              rightLabel: 'Adventurous',
-              onChanged: (value) => setState(() => _adventurousness = value),
-            ),
-
-            // Food Focus
-            _buildPreferenceSlider(
-              label: 'Food Importance',
-              value: _foodFocus,
-              leftLabel: 'Not Important',
-              rightLabel: 'Foodie',
-              onChanged: (value) => setState(() => _foodFocus = value),
-            ),
-
-            // Urban vs Nature
-            _buildPreferenceSlider(
-              label: 'Environment',
-              value: _urbanVsNature,
-              leftLabel: 'Nature',
-              rightLabel: 'Urban',
-              onChanged: (value) => setState(() => _urbanVsNature = value),
-            ),
-
-            // Budget Flexibility
-            _buildPreferenceSlider(
-              label: 'Budget Flexibility',
-              value: _budgetFlexibility,
-              leftLabel: 'Strict',
-              rightLabel: 'Flexible',
-              onChanged: (value) => setState(() => _budgetFlexibility = value),
-            ),
-
-            // Pace Preference
-            _buildPreferenceSlider(
-              label: 'Travel Pace',
-              value: _pacePreference,
-              leftLabel: 'Slow/Relaxed',
-              rightLabel: 'Fast-paced',
-              onChanged: (value) => setState(() => _pacePreference = value),
-            ),
-
+            // Cover Photo Section
+            _buildCoverPhotoSection(theme),
             const SizedBox(height: 32),
 
             // Submit Button
@@ -373,49 +449,148 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
     );
   }
 
-  Widget _buildPreferenceSlider({
-    required String label,
-    required double value,
-    required String leftLabel,
-    required String rightLabel,
-    required ValueChanged<double> onChanged,
-  }) {
+  Widget _buildCoverPhotoSection(ThemeData theme) {
+    final hasNewPhoto = _newCoverPhoto != null;
+    final hasExistingPhoto = !_photoRemoved && _existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty;
+    final hasAnyPhoto = hasNewPhoto || hasExistingPhoto;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w500,
+          'Trip Cover Photo',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 4),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                leftLabel,
-                style: Theme.of(context).textTheme.bodySmall,
+        Text(
+          'Update the photo that represents your trip',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: _pickCoverPhoto,
+          child: Container(
+            height: 180,
+            width: double.infinity,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.textSecondary.withValues(alpha: 0.3),
+                width: 1,
               ),
             ),
-            Expanded(
-              child: Text(
-                rightLabel,
-                textAlign: TextAlign.end,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ],
+            child: hasAnyPhoto
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Show the photo (new or existing)
+                      if (hasNewPhoto)
+                        Image.file(
+                          _newCoverPhoto!,
+                          fit: BoxFit.cover,
+                        )
+                      else if (hasExistingPhoto)
+                        S3Image(
+                          s3Key: _existingPhotoUrl!,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                          errorWidget: (context, url, error) => Icon(
+                            Icons.broken_image,
+                            size: 48,
+                            color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      // Action buttons overlay
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Row(
+                          children: [
+                            _buildPhotoActionButton(
+                              Icons.edit,
+                              'Change',
+                              _pickCoverPhoto,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildPhotoActionButton(
+                              Icons.delete,
+                              'Remove',
+                              _removePhoto,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 48,
+                        color: AppColors.textSecondary.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap to add cover photo',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ),
-        Slider(
-          value: value,
-          min: 0,
-          max: 100,
-          divisions: 20,
-          onChanged: onChanged,
-        ),
-        const SizedBox(height: 8),
       ],
     );
+  }
+
+  Widget _buildPhotoActionButton(IconData icon, String tooltip, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickCoverPhoto() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      imageQuality: 85,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _newCoverPhoto = File(pickedFile.path);
+        _photoRemoved = false;  // Reset removal flag
+      });
+    }
+  }
+
+  void _removePhoto() {
+    setState(() {
+      _newCoverPhoto = null;
+      _photoRemoved = true;  // Mark that the photo should be removed
+    });
   }
 }

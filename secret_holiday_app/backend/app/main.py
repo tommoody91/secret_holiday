@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import upload
+from app.routers import upload, admin, photos, suggestions
 
 
 @asynccontextmanager
@@ -48,6 +48,9 @@ app.add_middleware(
 
 # Include routers
 app.include_router(upload.router, prefix="/upload", tags=["Upload"])
+app.include_router(photos.router, prefix="/photos", tags=["Photos"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(suggestions.router, prefix="/v1/destinations", tags=["Suggestions"])
 
 
 @app.get("/")

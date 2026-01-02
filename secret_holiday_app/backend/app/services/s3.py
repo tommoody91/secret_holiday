@@ -40,7 +40,7 @@ class S3Service:
         content_type: str = "application/octet-stream",
     ) -> str:
         """
-        Upload a file to S3.
+        Upload a file to S3 (private bucket).
         
         Args:
             file_content: The file bytes to upload
@@ -48,7 +48,7 @@ class S3Service:
             content_type: MIME type of the file
         
         Returns:
-            The public URL of the uploaded file
+            The S3 key of the uploaded file (NOT a presigned URL)
         """
         self.client.put_object(
             Bucket=settings.AWS_S3_BUCKET,
@@ -57,12 +57,8 @@ class S3Service:
             ContentType=content_type,
         )
         
-        # Return a presigned URL (works even if bucket isn't public)
-        return self.client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": settings.AWS_S3_BUCKET, "Key": key},
-            ExpiresIn=3600,  # 1 hour
-        )
+        # Return the S3 key - clients should use get_presigned_url() to get access URLs
+        return key
     
     async def list_files(self, prefix: str) -> list[dict]:
         """
@@ -72,7 +68,7 @@ class S3Service:
             prefix: The S3 key prefix to filter by
         
         Returns:
-            List of file metadata dicts
+            List of file metadata dicts with keys (NOT presigned URLs)
         """
         response = self.client.list_objects_v2(
             Bucket=settings.AWS_S3_BUCKET,
@@ -81,15 +77,8 @@ class S3Service:
         
         files = []
         for obj in response.get("Contents", []):
-            # Use presigned URLs so images can be viewed even if bucket isn't public
-            presigned_url = self.client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.AWS_S3_BUCKET, "Key": obj["Key"]},
-                ExpiresIn=3600,  # 1 hour
-            )
             files.append({
                 "key": obj["Key"],
-                "url": presigned_url,
                 "size": obj["Size"],
                 "last_modified": obj["LastModified"].isoformat(),
             })
@@ -116,13 +105,13 @@ class S3Service:
                 Key=obj["Key"],
             )
     
-    async def get_presigned_url(self, key: str, expires_in: int = 3600) -> str:
+    async def get_presigned_url(self, key: str, expires_in: int = 86400) -> str:
         """
         Generate a presigned URL for temporary access.
         
         Args:
             key: The S3 key of the file
-            expires_in: URL expiration time in seconds (default 1 hour)
+            expires_in: URL expiration time in seconds (default 24 hours)
         
         Returns:
             Presigned URL string
@@ -132,6 +121,32 @@ class S3Service:
             Params={"Bucket": settings.AWS_S3_BUCKET, "Key": key},
             ExpiresIn=expires_in,
         )
+    
+    async def delete_all_files(self) -> int:
+        """
+        Delete ALL files from the S3 bucket.
+        
+        WARNING: This is destructive and cannot be undone!
+        
+        Returns:
+            Number of files deleted
+        """
+        deleted_count = 0
+        paginator = self.client.get_paginator('list_objects_v2')
+        
+        for page in paginator.paginate(Bucket=settings.AWS_S3_BUCKET):
+            if 'Contents' not in page:
+                continue
+                
+            objects = [{'Key': obj['Key']} for obj in page['Contents']]
+            if objects:
+                self.client.delete_objects(
+                    Bucket=settings.AWS_S3_BUCKET,
+                    Delete={'Objects': objects}
+                )
+                deleted_count += len(objects)
+        
+        return deleted_count
 
 
 # Singleton instance

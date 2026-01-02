@@ -8,8 +8,19 @@ import '../utils/logger.dart';
 /// Service for uploading photos via the backend API
 /// The backend handles all AWS S3 logic - Flutter just sends files to the API
 class PhotoUploadService {
-  // Backend API URL - use 10.0.2.2 for Android emulator
+  // Backend API URL
+  // For physical device testing via ngrok, update this URL:
+  static const String _ngrokUrl = 'https://collenchymatous-antony-naggingly.ngrok-free.dev';
+  
+  // Set to true when testing on a physical device
+  static const bool _useNgrok = true;
+  
   static String get baseUrl {
+    // Use ngrok for physical device testing
+    if (_useNgrok && !kIsWeb) {
+      return _ngrokUrl;
+    }
+    
     if (kIsWeb) {
       return 'http://localhost:8000';
     }
@@ -27,9 +38,20 @@ class PhotoUploadService {
     required File file,
     required String tripId,
     required String authToken,
+    int? dayNumber,
+    String? activityId,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/upload/photo?trip_id=$tripId');
+      // Build query parameters
+      final queryParams = <String, String>{'trip_id': tripId};
+      if (dayNumber != null) {
+        queryParams['day_number'] = dayNumber.toString();
+      }
+      if (activityId != null) {
+        queryParams['activity_id'] = activityId;
+      }
+      
+      final uri = Uri.parse('$baseUrl/upload/photo').replace(queryParameters: queryParams);
       
       final request = http.MultipartRequest('POST', uri)
         ..headers['Authorization'] = 'Bearer $authToken'
@@ -46,12 +68,15 @@ class PhotoUploadService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        AppLogger.info('Photo uploaded successfully: ${data['url']}');
+        AppLogger.info('Photo uploaded successfully: ${data['s3_key']}');
         return PhotoUploadResult(
           success: true,
           photoId: data['photo_id'],
-          url: data['url'],
+          s3Key: data['s3_key'],  // Store this in Firestore
+          url: data['url'],       // Presigned URL for immediate use
           tripId: data['trip_id'],
+          dayNumber: data['day_number'],
+          activityId: data['activity_id'],
         );
       } else {
         final error = json.decode(response.body)['detail'] ?? 'Upload failed';
@@ -147,15 +172,21 @@ class PhotoUploadService {
 class PhotoUploadResult {
   final bool success;
   final String? photoId;
-  final String? url;
+  final String? s3Key;  // Store this in Firestore - never expires
+  final String? url;    // Presigned URL - valid for 24 hours
   final String? tripId;
+  final int? dayNumber;
+  final String? activityId;
   final String? error;
 
   PhotoUploadResult({
     required this.success,
     this.photoId,
+    this.s3Key,
     this.url,
     this.tripId,
+    this.dayNumber,
+    this.activityId,
     this.error,
   });
 }
@@ -163,13 +194,11 @@ class PhotoUploadResult {
 /// Info about an uploaded photo
 class PhotoInfo {
   final String key;
-  final String url;
   final int size;
   final String lastModified;
 
   PhotoInfo({
     required this.key,
-    required this.url,
     required this.size,
     required this.lastModified,
   });
@@ -177,7 +206,6 @@ class PhotoInfo {
   factory PhotoInfo.fromJson(Map<String, dynamic> json) {
     return PhotoInfo(
       key: json['key'] ?? '',
-      url: json['url'] ?? '',
       size: json['size'] ?? 0,
       lastModified: json['last_modified'] ?? '',
     );

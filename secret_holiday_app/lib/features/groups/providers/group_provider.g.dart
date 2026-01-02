@@ -237,7 +237,7 @@ final class GroupNotifierProvider
   GroupNotifier create() => GroupNotifier();
 }
 
-String _$groupNotifierHash() => r'033358e677f6a6be2352baf27c6380e27387f06a';
+String _$groupNotifierHash() => r'72288546ee09e8910ac4be37559c71ed8d2798d5';
 
 /// Group management notifier - handles all group operations
 

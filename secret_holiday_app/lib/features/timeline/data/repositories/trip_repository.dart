@@ -33,6 +33,7 @@ class TripRepository {
     required int budgetPerPerson,
     double? latitude,
     double? longitude,
+    String? coverPhotoUrl,
     int adventurousness = 50,
     int foodFocus = 50,
     int urbanVsNature = 50,
@@ -86,7 +87,7 @@ class TripRepository {
         summary: summary,
         itinerary: const [], // Empty initially
         media: const [], // Empty initially
-        coverPhotoUrl: null,
+        coverPhotoUrl: coverPhotoUrl,
         totalCost: 0, // Will be calculated from expenses
         costPerPerson: budgetPerPerson,
         status: initialStatus,

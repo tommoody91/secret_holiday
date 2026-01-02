@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/route_constants.dart';
 import '../../../../core/presentation/widgets/widgets.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../data/models/group_model.dart';
 import '../../providers/group_provider.dart';
 
@@ -110,116 +111,277 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Join Group'),
-      ),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Form(
           key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Header
-              Text(
-                'Join a Travel Group',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter the 6-character invite code',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Invite Code Input
-              CustomTextField(
-                controller: _inviteCodeController,
-                label: 'Invite Code',
-                hint: 'ABC123',
-                prefixIcon: Icons.lock_open,
-                keyboardType: TextInputType.text,
-                maxLength: 6,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]')),
-                  UpperCaseTextFormatter(),
-                ],
-                onChanged: (value) {
-                  if (value.length == 6) {
-                    _validateInviteCode();
-                  } else {
-                    setState(() {
-                      _previewGroup = null;
-                    });
-                  }
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an invite code';
-                  }
-                  if (value.length != 6) {
-                    return 'Invite code must be 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Validating indicator
-              if (_isValidating)
-                Center(
+          child: CustomScrollView(
+            slivers: [
+              // Modern Header
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const LoadingIndicator(),
+                      Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.arrow_back_rounded),
+                              onPressed: () => context.pop(),
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [AppColors.primary, AppColors.primaryLight],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.link_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Join a\nTravel Group',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                          height: 1.2,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Text(
-                        'Validating code...',
-                        style: theme.textTheme.bodySmall,
+                        'Enter the 6-character invite code from your group',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
                 ),
-
-              // Group Preview
-              if (_previewGroup != null) ...[
-                const SizedBox(height: 16),
-                _buildGroupPreview(_previewGroup!, theme),
-                const SizedBox(height: 32),
-                
-                // Join Button
-                PrimaryButton(
-                  text: 'Join Group',
-                  onPressed: groupState.isLoading ? null : _joinGroup,
-                  isLoading: groupState.isLoading,
-                  icon: Icons.group_add,
-                ),
-              ],
-
-              if (_previewGroup == null && !_isValidating)
-                const SizedBox(height: 32),
-
-              // Alternative: Create Group
-              if (_previewGroup == null && !_isValidating) ...[
-                const Divider(),
-                const SizedBox(height: 16),
-                Center(
-                  child: Text(
-                    'Don\'t have an invite code?',
-                    style: theme.textTheme.bodyMedium,
+              ),
+              
+              // Invite Code Card
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CustomTextField(
+                          controller: _inviteCodeController,
+                          label: 'Invite Code',
+                          hint: 'ABC123',
+                          prefixIcon: Icons.lock_open_rounded,
+                          keyboardType: TextInputType.text,
+                          maxLength: 6,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]')),
+                            UpperCaseTextFormatter(),
+                          ],
+                          onChanged: (value) {
+                            if (value.length == 6) {
+                              _validateInviteCode();
+                            } else {
+                              setState(() {
+                                _previewGroup = null;
+                              });
+                            }
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter an invite code';
+                            }
+                            if (value.length != 6) {
+                              return 'Invite code must be 6 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        
+                        // Validating indicator
+                        if (_isValidating) ...[
+                          const SizedBox(height: 20),
+                          Center(
+                            child: Column(
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Validating code...',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                SecondaryButton(
-                  text: 'Create New Group',
-                  onPressed: () => context.go(RouteConstants.createGroup),
-                  icon: Icons.add,
+              ),
+              
+              // Group Preview
+              if (_previewGroup != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                    child: _buildGroupPreview(_previewGroup!, theme),
+                  ),
                 ),
-              ],
+              
+              // Join Button
+              if (_previewGroup != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                    child: PrimaryButton(
+                      text: 'Join Group',
+                      onPressed: groupState.isLoading ? null : _joinGroup,
+                      isLoading: groupState.isLoading,
+                      icon: Icons.group_add_rounded,
+                    ),
+                  ),
+                ),
+              
+              // Alternative: Create Group
+              if (_previewGroup == null && !_isValidating)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                'or',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Don\'t have an invite code?',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildCreateGroupCard(context, theme),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 16),
+  Widget _buildCreateGroupCard(BuildContext context, ThemeData theme) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => context.go(RouteConstants.createGroup),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.add_rounded,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Create New Group',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Start your own travel group',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
             ],
           ),
         ),
@@ -228,75 +390,171 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
   }
 
   Widget _buildGroupPreview(GroupModel group, ThemeData theme) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.shade300, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Row(
-            children: [
-              Icon(
-                Icons.group,
-                size: 48,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      group.name,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                // Group Avatar
+                _buildGroupAvatar(group),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.name,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${group.members.length} ${group.members.length == 1 ? 'member' : 'members'}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.people_outline,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${group.members.length} ${group.members.length == 1 ? 'member' : 'members'}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_rounded,
+                    color: Colors.green.shade600,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            // Group Rules Preview
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
               ),
-              Icon(
-                Icons.check_circle,
-                color: Colors.green,
-                size: 32,
+              child: Column(
+                children: [
+                  _buildRuleItem(
+                    Icons.attach_money,
+                    'Budget',
+                    '£${group.rules.budgetPerPerson} per person',
+                    theme,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildRuleItem(
+                    Icons.calendar_today_outlined,
+                    'Trip Length',
+                    'Up to ${group.rules.maxTripDays} days',
+                    theme,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildRuleItem(
+                    Icons.luggage_outlined,
+                    'Luggage',
+                    group.rules.luggageAllowance,
+                    theme,
+                  ),
+                ],
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupAvatar(GroupModel group) {
+    if (group.photoUrl != null && group.photoUrl!.isNotEmpty) {
+      return Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.network(
+            group.photoUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildGroupAvatarPlaceholder(group),
           ),
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 8),
-          
-          // Group Rules Preview
-          _buildRuleItem(
-            Icons.attach_money,
-            'Budget',
-            '\$${group.rules.budgetPerPerson} per person',
-            theme,
+        ),
+      );
+    }
+    return _buildGroupAvatarPlaceholder(group);
+  }
+
+  Widget _buildGroupAvatarPlaceholder(GroupModel group) {
+    final colors = [
+      [const Color(0xFF667eea), const Color(0xFF764ba2)],
+      [const Color(0xFFf093fb), const Color(0xFFf5576c)],
+      [const Color(0xFF4facfe), const Color(0xFF00f2fe)],
+      [const Color(0xFF43e97b), const Color(0xFF38f9d7)],
+      [const Color(0xFFfa709a), const Color(0xFFfee140)],
+    ];
+    final colorPair = colors[group.name.hashCode.abs() % colors.length];
+
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colorPair,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: Text(
+          group.name.isNotEmpty ? group.name[0].toUpperCase() : 'G',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
           ),
-          _buildRuleItem(
-            Icons.calendar_today,
-            'Trip Length',
-            'Up to ${group.rules.maxTripDays} days',
-            theme,
-          ),
-          _buildRuleItem(
-            Icons.luggage,
-            'Luggage',
-            group.rules.luggageAllowance,
-            theme,
-          ),
-        ],
         ),
       ),
     );
@@ -308,24 +566,32 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
     String value,
     ThemeData theme,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium,
+          child: Icon(icon, size: 16, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: AppColors.textSecondary,
           ),
-        ],
-      ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 }

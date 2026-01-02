@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 's3_image.dart';
 
 /// User avatar widget with fallback
 class UserAvatar extends StatelessWidget {
@@ -23,18 +23,11 @@ class UserAvatar extends StatelessWidget {
     Widget avatarContent;
     
     if (imageUrl != null && imageUrl!.isNotEmpty) {
-      avatarContent = CachedNetworkImage(
-        imageUrl: imageUrl!,
-        imageBuilder: (context, imageProvider) => CircleAvatar(
-          radius: size / 2,
-          backgroundImage: imageProvider,
-        ),
-        placeholder: (context, url) => CircleAvatar(
-          radius: size / 2,
-          backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          child: const CircularProgressIndicator(strokeWidth: 2),
-        ),
-        errorWidget: (context, url, error) => _buildInitialsAvatar(theme),
+      avatarContent = S3Avatar(
+        s3Key: imageUrl,
+        radius: size / 2,
+        child: _buildInitials(theme),
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
       );
     } else {
       avatarContent = _buildInitialsAvatar(theme);
@@ -48,6 +41,18 @@ class UserAvatar extends StatelessWidget {
     }
     
     return avatarContent;
+  }
+  
+  Widget _buildInitials(ThemeData theme) {
+    final initials = _getInitials(name ?? 'U');
+    return Text(
+      initials,
+      style: TextStyle(
+        color: theme.colorScheme.onPrimaryContainer,
+        fontSize: size / 2.5,
+        fontWeight: FontWeight.bold,
+      ),
+    );
   }
   
   Widget _buildInitialsAvatar(ThemeData theme) {

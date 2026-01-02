@@ -51,6 +51,8 @@ TripMedia _$TripMediaFromJson(Map<String, dynamic> json) => TripMedia(
   uploadedBy: json['uploadedBy'] as String,
   caption: json['caption'] as String?,
   thumbnailUrl: json['thumbnailUrl'] as String?,
+  dayNumber: (json['dayNumber'] as num?)?.toInt(),
+  activityId: json['activityId'] as String?,
   uploadedAt: TripMedia._timestampFromJson(json['uploadedAt']),
 );
 
@@ -61,6 +63,8 @@ Map<String, dynamic> _$TripMediaToJson(TripMedia instance) => <String, dynamic>{
   'uploadedBy': instance.uploadedBy,
   'caption': instance.caption,
   'thumbnailUrl': instance.thumbnailUrl,
+  'dayNumber': instance.dayNumber,
+  'activityId': instance.activityId,
   'uploadedAt': TripMedia._timestampToJson(instance.uploadedAt),
 };
 

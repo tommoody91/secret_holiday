@@ -58,6 +58,7 @@ class GroupRepository {
     required String luggageAllowance,
     bool noRepeatCountries = false,
     List<String> customRules = const [],
+    String? photoUrl,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -117,6 +118,7 @@ class GroupRepository {
           customRules: customRules,
         ),
         inviteCode: inviteCode,
+        photoUrl: photoUrl,
         createdAt: now,
         updatedAt: now,
       );
@@ -258,6 +260,7 @@ class GroupRepository {
     required String groupId,
     String? name,
     GroupRules? rules,
+    String? photoUrl,
     DateTime? upcomingTripStartDate,
     DateTime? upcomingTripEndDate,
   }) async {
@@ -286,6 +289,10 @@ class GroupRepository {
 
       if (name != null) updates['name'] = name;
       if (rules != null) updates['rules'] = rules.toJson();
+      if (photoUrl != null) {
+        // Empty string means remove photo
+        updates['photoUrl'] = photoUrl.isEmpty ? null : photoUrl;
+      }
       if (upcomingTripStartDate != null) {
         updates['upcomingTripStartDate'] = Timestamp.fromDate(upcomingTripStartDate);
       }
@@ -483,7 +490,7 @@ class GroupRepository {
     await removeMember(groupId: groupId, userId: user.uid);
   }
 
-  /// Delete a group (admin only)
+  /// Delete a group (creator only)
   Future<void> deleteGroup(String groupId) async {
     try {
       final user = _auth.currentUser;
@@ -495,14 +502,9 @@ class GroupRepository {
 
       final group = await getGroup(groupId);
 
-      // Check if user is admin
-      final userMember = group.members.firstWhere(
-        (m) => m.userId == user.uid,
-        orElse: () => throw AuthException('Not a member of this group'),
-      );
-
-      if (userMember.role != 'admin') {
-        throw AuthException('Only admins can delete groups');
+      // Check if user is the group creator
+      if (group.createdBy != user.uid) {
+        throw AuthException('Only the group creator can delete the group');
       }
 
       await _groupsCollection.doc(groupId).delete();

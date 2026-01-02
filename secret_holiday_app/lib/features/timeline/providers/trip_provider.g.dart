@@ -425,7 +425,7 @@ final class TripNotifierProvider
   }
 }
 
-String _$tripNotifierHash() => r'256f853d078b8e481a80101aa4c33116aafa095e';
+String _$tripNotifierHash() => r'00b3a9f51faf77aec6ef259221d17552fe289fca';
 
 /// Trip management notifier - handles all trip operations
 

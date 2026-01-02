@@ -1,8 +1,14 @@
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/presentation/widgets/widgets.dart';
+import '../../../../core/presentation/widgets/s3_image.dart';
+import '../../../../core/services/photo_upload_service.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../data/models/group_model.dart';
 import '../../providers/group_provider.dart';
 
@@ -22,8 +28,10 @@ class _EditGroupSettingsScreenState extends ConsumerState<EditGroupSettingsScree
   late TextEditingController _budgetController;
   late TextEditingController _maxDaysController;
   
-  String _luggageAllowance = 'Carry-on only';
   bool _noRepeatCountries = false;
+  File? _newGroupPhoto;
+  String? _existingPhotoUrl;
+  bool _removeExistingPhoto = false;
   
   bool _isLoading = false;
   bool _isInitialized = false;
@@ -45,10 +53,74 @@ class _EditGroupSettingsScreenState extends ConsumerState<EditGroupSettingsScree
       _maxDaysController = TextEditingController(
         text: group.rules.maxTripDays.toString(),
       );
-      _luggageAllowance = group.rules.luggageAllowance;
       _noRepeatCountries = group.rules.noRepeatCountries;
+      _existingPhotoUrl = group.photoUrl;
       _isInitialized = true;
     }
+  }
+
+  Future<void> _pickGroupPhoto() async {
+    final picker = ImagePicker();
+    
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Photo'),
+              onTap: () async {
+                Navigator.pop(context);
+                final image = await picker.pickImage(
+                  source: ImageSource.camera,
+                  maxWidth: 1024,
+                  maxHeight: 1024,
+                  imageQuality: 85,
+                );
+                if (image != null) {
+                  setState(() {
+                    _newGroupPhoto = File(image.path);
+                    _removeExistingPhoto = false;
+                  });
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final image = await picker.pickImage(
+                  source: ImageSource.gallery,
+                  maxWidth: 1024,
+                  maxHeight: 1024,
+                  imageQuality: 85,
+                );
+                if (image != null) {
+                  setState(() {
+                    _newGroupPhoto = File(image.path);
+                    _removeExistingPhoto = false;
+                  });
+                }
+              },
+            ),
+            if (_existingPhotoUrl != null || _newGroupPhoto != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _newGroupPhoto = null;
+                    _removeExistingPhoto = true;
+                  });
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -96,6 +168,10 @@ class _EditGroupSettingsScreenState extends ConsumerState<EditGroupSettingsScree
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // Group Photo Section
+                _buildGroupPhotoSection(theme, group),
+                const SizedBox(height: 24),
+                
                 // Group Name Section
                 Text(
                   'Group Information',
@@ -200,37 +276,6 @@ class _EditGroupSettingsScreenState extends ConsumerState<EditGroupSettingsScree
 
                 const SizedBox(height: 16),
 
-                DropdownButtonFormField<String>(
-                  value: _luggageAllowance,
-                  decoration: const InputDecoration(
-                    labelText: 'Luggage Allowance',
-                    prefixIcon: Icon(Icons.luggage),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Carry-on only',
-                      child: Text('Carry-on only'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'One checked bag',
-                      child: Text('One checked bag'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Two checked bags',
-                      child: Text('Two checked bags'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _luggageAllowance = value;
-                      });
-                    }
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
                 SwitchListTile(
                   title: const Text('No Repeat Countries'),
                   subtitle: const Text(
@@ -283,6 +328,25 @@ class _EditGroupSettingsScreenState extends ConsumerState<EditGroupSettingsScree
       final newBudget = int.parse(_budgetController.text);
       final newMaxDays = int.parse(_maxDaysController.text);
 
+      // Upload new photo if selected
+      String? newPhotoUrl;
+      if (_newGroupPhoto != null) {
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (token != null) {
+          final result = await PhotoUploadService.uploadPhoto(
+            file: _newGroupPhoto!,
+            tripId: 'group_${widget.groupId}',
+            authToken: token,
+          );
+          if (result.success && result.url != null) {
+            newPhotoUrl = result.url;
+          }
+        }
+      }
+      
+      // Check if still mounted after async photo upload
+      if (!mounted) return;
+
       // BUG FIX: Call repository directly to avoid provider disposal issues
       // Going through the notifier can cause disposal race conditions with navigation
       await ref.read(groupRepositoryProvider).updateGroupSettings(
@@ -291,9 +355,10 @@ class _EditGroupSettingsScreenState extends ConsumerState<EditGroupSettingsScree
         rules: GroupRules(
           budgetPerPerson: newBudget,
           maxTripDays: newMaxDays,
-          luggageAllowance: _luggageAllowance,
+          luggageAllowance: 'Not specified',  // Legacy field, no longer editable
           noRepeatCountries: _noRepeatCountries,
         ),
+        photoUrl: _removeExistingPhoto ? '' : newPhotoUrl,
       );
 
       if (mounted) {
@@ -322,5 +387,130 @@ class _EditGroupSettingsScreenState extends ConsumerState<EditGroupSettingsScree
         });
       }
     }
+  }
+
+  Widget _buildGroupPhotoSection(ThemeData theme, GroupModel group) {
+    final hasPhoto = (_newGroupPhoto != null) || 
+                     (!_removeExistingPhoto && _existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Group Photo',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: GestureDetector(
+            onTap: _pickGroupPhoto,
+            child: Container(
+              width: 200,
+              height: 150,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: _newGroupPhoto != null
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.file(
+                            _newGroupPhoto!,
+                            fit: BoxFit.cover,
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: GestureDetector(
+                              onTap: () => setState(() {
+                                _newGroupPhoto = null;
+                                _removeExistingPhoto = true;
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : (!_removeExistingPhoto && _existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty)
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              S3Image(
+                                s3Key: _existingPhotoUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                errorWidget: (context, url, error) => const Icon(
+                                  Icons.error,
+                                  color: Colors.red,
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    _removeExistingPhoto = true;
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.black54,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_photo_alternate_outlined,
+                                size: 48,
+                                color: AppColors.primary.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap to add photo',
+                                style: TextStyle(
+                                  color: AppColors.primary.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ],
+                          ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

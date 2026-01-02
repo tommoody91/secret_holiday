@@ -65,9 +65,10 @@ class GroupNotifier extends _$GroupNotifier {
     required String name,
     required int budgetPerPerson,
     required int maxTripDays,
-    required String luggageAllowance,
+    String luggageAllowance = 'Not specified',
     bool noRepeatCountries = false,
     List<String> customRules = const [],
+    String? photoUrl,
   }) async {
     state = const AsyncValue.loading();
     
@@ -80,6 +81,7 @@ class GroupNotifier extends _$GroupNotifier {
         luggageAllowance: luggageAllowance,
         noRepeatCountries: noRepeatCountries,
         customRules: customRules,
+        photoUrl: photoUrl,
       );
 
       // Auto-select the newly created group

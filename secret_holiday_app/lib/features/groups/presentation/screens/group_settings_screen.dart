@@ -62,6 +62,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
           ),
         );
         final isAdmin = currentMember.role == 'admin';
+        final isCreator = group.createdBy == currentUser?.uid;
 
         return Scaffold(
           appBar: AppBar(
@@ -88,7 +89,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
               const SizedBox(height: 24),
               _buildRulesSection(group),
               const SizedBox(height: 24),
-              _buildDangerZone(context, group, isAdmin),
+              _buildDangerZone(context, group, isAdmin, isCreator),
             ],
           ),
         );
@@ -319,7 +320,6 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
             const Divider(height: 24),
             _buildInfoRow('Budget Per Person', '\$${group.rules.budgetPerPerson}'),
             _buildInfoRow('Max Trip Days', '${group.rules.maxTripDays} days'),
-            _buildInfoRow('Luggage', group.rules.luggageAllowance),
             _buildInfoRow(
               'No Repeat Countries',
               group.rules.noRepeatCountries ? 'Yes' : 'No',
@@ -330,7 +330,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
     );
   }
 
-  Widget _buildDangerZone(BuildContext context, GroupModel group, bool isAdmin) {
+  Widget _buildDangerZone(BuildContext context, GroupModel group, bool isAdmin, bool isCreator) {
     final theme = Theme.of(context);
     
     return Card(
@@ -359,7 +359,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
               onPressed: () => _confirmLeaveGroup(context, group),
               icon: Icons.exit_to_app,
             ),
-            if (isAdmin) ...[
+            if (isCreator) ...[
               const SizedBox(height: 12),
               SecondaryButton(
                 text: 'Delete Group',

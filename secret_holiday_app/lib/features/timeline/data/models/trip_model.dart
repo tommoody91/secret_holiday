@@ -68,6 +68,8 @@ class TripMedia extends Equatable {
   final String uploadedBy;
   final String? caption;
   final String? thumbnailUrl; // For videos
+  final int? dayNumber; // Link to specific day (1-based)
+  final String? activityId; // Link to specific activity
   @JsonKey(fromJson: _timestampFromJson, toJson: _timestampToJson)
   final DateTime uploadedAt;
   
@@ -78,6 +80,8 @@ class TripMedia extends Equatable {
     required this.uploadedBy,
     this.caption,
     this.thumbnailUrl,
+    this.dayNumber,
+    this.activityId,
     required this.uploadedAt,
   });
   
@@ -85,9 +89,33 @@ class TripMedia extends Equatable {
       _$TripMediaFromJson(json);
   
   Map<String, dynamic> toJson() => _$TripMediaToJson(this);
+
+  TripMedia copyWith({
+    String? id,
+    String? url,
+    String? type,
+    String? uploadedBy,
+    String? caption,
+    String? thumbnailUrl,
+    int? dayNumber,
+    String? activityId,
+    DateTime? uploadedAt,
+  }) {
+    return TripMedia(
+      id: id ?? this.id,
+      url: url ?? this.url,
+      type: type ?? this.type,
+      uploadedBy: uploadedBy ?? this.uploadedBy,
+      caption: caption ?? this.caption,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      dayNumber: dayNumber ?? this.dayNumber,
+      activityId: activityId ?? this.activityId,
+      uploadedAt: uploadedAt ?? this.uploadedAt,
+    );
+  }
   
   @override
-  List<Object?> get props => [id, url, type, uploadedBy, caption, thumbnailUrl, uploadedAt];
+  List<Object?> get props => [id, url, type, uploadedBy, caption, thumbnailUrl, dayNumber, activityId, uploadedAt];
   
   static DateTime _timestampFromJson(dynamic timestamp) {
     if (timestamp is Timestamp) {

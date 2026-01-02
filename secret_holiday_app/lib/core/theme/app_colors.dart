@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   // Brand Colors
   static const Color primary = Color(0xFF6C63FF); // Vibrant purple
+  static const Color primaryLight = Color(0xFF9D97FF); // Lighter purple for gradients
   static const Color secondary = Color(0xFFFF6584); // Pink accent
   static const Color accent = Color(0xFF00D9C0); // Teal
   

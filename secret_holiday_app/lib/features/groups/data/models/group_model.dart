@@ -83,6 +83,9 @@ class GroupModel extends Equatable {
   final GroupRules rules;
   final String inviteCode;
   
+  // Group photo URL
+  final String? photoUrl;
+  
   // Upcoming trip info
   final DateTime? upcomingTripStartDate;
   final DateTime? upcomingTripEndDate;
@@ -101,6 +104,7 @@ class GroupModel extends Equatable {
     required this.memberIds,
     required this.rules,
     required this.inviteCode,
+    this.photoUrl,
     this.upcomingTripStartDate,
     this.upcomingTripEndDate,
     required this.createdAt,
@@ -132,6 +136,7 @@ class GroupModel extends Equatable {
     List<String>? memberIds,
     GroupRules? rules,
     String? inviteCode,
+    String? photoUrl,
     DateTime? upcomingTripStartDate,
     DateTime? upcomingTripEndDate,
     DateTime? createdAt,
@@ -146,6 +151,7 @@ class GroupModel extends Equatable {
       memberIds: memberIds ?? this.memberIds,
       rules: rules ?? this.rules,
       inviteCode: inviteCode ?? this.inviteCode,
+      photoUrl: photoUrl ?? this.photoUrl,
       upcomingTripStartDate: upcomingTripStartDate ?? this.upcomingTripStartDate,
       upcomingTripEndDate: upcomingTripEndDate ?? this.upcomingTripEndDate,
       createdAt: createdAt ?? this.createdAt,
@@ -163,6 +169,7 @@ class GroupModel extends Equatable {
         memberIds,
         rules,
         inviteCode,
+        photoUrl,
         upcomingTripStartDate,
         upcomingTripEndDate,
         createdAt,

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secret_holiday_app/core/theme/app_colors.dart';
+import 'package:secret_holiday_app/features/groups/data/models/group_model.dart';
 import 'package:secret_holiday_app/features/groups/providers/group_provider.dart';
+import 'package:secret_holiday_app/core/presentation/widgets/s3_image.dart';
 import '../../data/models/trip_model.dart';
 import '../../providers/trip_provider.dart';
 import '../widgets/trip_card.dart';
@@ -26,9 +28,9 @@ class TimelineScreen extends ConsumerWidget {
         return tripsAsync.when(
           data: (trips) {
             if (trips.isEmpty) {
-              return _buildEmptyState(context, group.name, group.id);
+              return _buildEmptyState(context, group);
             }
-            return _buildTripsView(context, ref, group.name, group.id, trips);
+            return _buildTripsView(context, ref, group, trips);
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stack) => Center(
@@ -69,46 +71,209 @@ class TimelineScreen extends ConsumerWidget {
   }
 
   Widget _buildNoGroupState(BuildContext context) {
-    return Center(
+    final theme = Theme.of(context);
+    
+    return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.group_add,
-              size: 100,
-              color: AppColors.textSecondary.withValues(alpha: 0.3),
+            const SizedBox(height: 40),
+            // Welcome illustration
+            Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.15),
+                    AppColors.primary.withValues(alpha: 0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Icon(
+                Icons.flight_takeoff,
+                size: 70,
+                color: AppColors.primary,
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
+            
+            // Welcome text
             Text(
-              'No Group Selected',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Welcome to Secret Holiday!',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
-              'Create or join a group to start planning your secret holiday!',
+              'Plan surprise trips with friends and family. Create a group to get started!',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {
-                context.push('/create-group');
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Create Group'),
+            const SizedBox(height: 40),
+            
+            // Action cards
+            _buildActionCard(
+              context,
+              icon: Icons.add_circle_outline,
+              title: 'Create a Group',
+              subtitle: 'Start a new travel group with friends',
+              onTap: () => context.push('/create-group'),
+              isPrimary: true,
+            ),
+            const SizedBox(height: 16),
+            _buildActionCard(
+              context,
+              icon: Icons.group_add_outlined,
+              title: 'Join a Group',
+              subtitle: 'Enter an invite code to join',
+              onTap: () => context.push('/join-group'),
+              isPrimary: false,
+            ),
+            
+            const SizedBox(height: 48),
+            
+            // Features preview
+            Text(
+              'What you can do',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(child: _buildFeatureItem(context, Icons.calendar_today, 'Plan Trips')),
+                Expanded(child: _buildFeatureItem(context, Icons.photo_library, 'Share Memories')),
+                Expanded(child: _buildFeatureItem(context, Icons.chat_bubble_outline, 'Group Chat')),
+              ],
             ),
           ],
         ),
       ),
     );
   }
+  
+  Widget _buildActionCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isPrimary,
+  }) {
+    final theme = Theme.of(context);
+    
+    return Material(
+      color: isPrimary ? AppColors.primary : Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: isPrimary ? null : Border.all(
+              color: AppColors.textSecondary.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isPrimary 
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isPrimary ? Colors.white : AppColors.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isPrimary ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isPrimary 
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: isPrimary 
+                    ? Colors.white.withValues(alpha: 0.8)
+                    : AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildFeatureItem(BuildContext context, IconData icon, String label) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.textSecondary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            size: 24,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
 
-  Widget _buildTripsView(BuildContext context, WidgetRef ref, String groupName, 
-      String groupId, List<TripModel> trips) {
+  Widget _buildTripsView(BuildContext context, WidgetRef ref, GroupModel group, 
+      List<TripModel> trips) {
+    final groupName = group.name;
+    final groupId = group.id;
+    
     // Separate trips into upcoming and past
     final now = DateTime.now();
     final upcomingTrips = trips.where((trip) => trip.startDate.isAfter(now)).toList();
@@ -126,45 +291,117 @@ class TimelineScreen extends ConsumerWidget {
       },
       child: CustomScrollView(
         slivers: [
-          // Group Header
+          // Group Header with Cover Photo
           SliverToBoxAdapter(
             child: Container(
               margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primary.withValues(alpha: 0.8),
-                  ],
-                ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.group, color: Colors.white, size: 28),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
+                  // Cover Photo or Gradient Background
+                  if (group.photoUrl != null && group.photoUrl!.isNotEmpty)
+                    AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: S3Image(
+                        s3Key: group.photoUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primary.withValues(alpha: 0.8),
+                              ],
+                            ),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(color: Colors.white),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primary.withValues(alpha: 0.8),
+                              ],
+                            ),
+                          ),
+                          child: const Icon(Icons.group, color: Colors.white, size: 60),
+                        ),
+                      ),
+                    )
+                  else
+                    AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primary,
+                              AppColors.primary.withValues(alpha: 0.8),
+                            ],
+                          ),
+                        ),
+                        child: const Icon(Icons.group, color: Colors.white, size: 60),
+                      ),
+                    ),
+                  // Gradient overlay for text readability
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.7),
+                          ],
+                          stops: const [0.4, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Group Info Overlay
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
                           groupName,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black54,
+                                blurRadius: 4,
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '${trips.length} ${trips.length == 1 ? 'trip' : 'trips'}',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 16,
+                        const SizedBox(height: 4),
+                        Text(
+                          '${trips.length} ${trips.length == 1 ? 'trip' : 'trips'} • ${group.members.length} ${group.members.length == 1 ? 'member' : 'members'}',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 14,
+                            shadows: const [
+                              Shadow(
+                                color: Colors.black54,
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -285,52 +522,123 @@ class TimelineScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, String groupName, String groupId) {
+  Widget _buildEmptyState(BuildContext context, GroupModel group) {
+    final groupName = group.name;
+    final groupId = group.id;
+    
     return CustomScrollView(
       slivers: [
-        // Group Header
+        // Group Header with Cover Photo
         SliverToBoxAdapter(
           child: Container(
             margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(20),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary,
-                  AppColors.primary.withValues(alpha: 0.8),
-                ],
-              ),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.group,
-                      color: Colors.white,
-                      size: 28,
+                // Cover Photo or Gradient Background
+                if (group.photoUrl != null && group.photoUrl!.isNotEmpty)
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: S3Image(
+                      s3Key: group.photoUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primary,
+                              AppColors.primary.withValues(alpha: 0.8),
+                            ],
+                          ),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primary,
+                              AppColors.primary.withValues(alpha: 0.8),
+                            ],
+                          ),
+                        ),
+                        child: const Icon(Icons.group, color: Colors.white, size: 60),
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
+                  )
+                else
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.8),
+                          ],
+                        ),
+                      ),
+                      child: const Icon(Icons.group, color: Colors.white, size: 60),
+                    ),
+                  ),
+                // Gradient overlay for text readability
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.7),
+                        ],
+                        stops: const [0.4, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+                // Group Info Overlay
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
                         groupName,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'No trips planned yet',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 16,
+                      const SizedBox(height: 4),
+                      Text(
+                        'No trips planned yet • ${group.members.length} ${group.members.length == 1 ? 'member' : 'members'}',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 14,
+                          shadows: const [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

@@ -293,282 +293,181 @@ class _TripDetailsScreenState extends ConsumerState<TripDetailsScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Status Badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: _getStatusColor(trip.currentStatus).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _getStatusColor(trip.currentStatus).withValues(alpha: 0.3),
-            ),
+        // Modern unified trip card (Instagram/Airbnb style)
+        Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: Row(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                _getStatusIcon(trip.currentStatus),
-                color: _getStatusColor(trip.currentStatus),
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
+              // Trip Info Section (no duplicate cover photo - it's already in the SliverAppBar)
+              Padding(
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Trip Status',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    // Status Badge Row
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(trip.currentStatus)
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _getStatusColor(trip.currentStatus)
+                                  .withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _getStatusIcon(trip.currentStatus),
+                                color: _getStatusColor(trip.currentStatus),
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _getStatusLabel(trip.currentStatus),
+                                style: TextStyle(
+                                  color: _getStatusColor(trip.currentStatus),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (trip.participantIds.isNotEmpty)
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${trip.participantIds.length} going',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
                     ),
+                    const SizedBox(height: 20),
+                    
+                    // Trip Name
                     Text(
-                      _getStatusLabel(trip.currentStatus),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: _getStatusColor(trip.currentStatus),
+                      trip.tripName,
+                      style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              if (trip.participantIds.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.people,
-                        size: 16,
-                        color: AppColors.primary,
+                    const SizedBox(height: 12),
+                    
+                    // Quick Info Grid
+                    Row(
+                      children: [
+                        _buildInfoChip(
+                          Icons.location_on_outlined,
+                          trip.location.destination,
+                        ),
+                        const SizedBox(width: 16),
+                        _buildInfoChip(
+                          Icons.calendar_today_outlined,
+                          '${trip.durationDays} days',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildInfoChip(
+                          Icons.currency_pound,
+                          '${trip.costPerPerson} pp',
+                        ),
+                        const SizedBox(width: 16),
+                        _buildInfoChip(
+                          Icons.flag_outlined,
+                          trip.location.country,
+                        ),
+                      ],
+                    ),
+                    
+                    // Divider
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Divider(
+                        color: AppColors.textSecondary.withValues(alpha: 0.2),
                       ),
-                      const SizedBox(width: 4),
+                    ),
+                    
+                    // Date Range
+                    _buildDetailRow(
+                      Icons.date_range,
+                      'Dates',
+                      _formatDateRange(trip.startDate, trip.endDate),
+                      theme,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Organizer
+                    _buildDetailRow(
+                      Icons.person_outline,
+                      'Organised by',
+                      trip.organizerName,
+                      theme,
+                      trailing: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                        child: Text(
+                          trip.organizerName.substring(0, 1).toUpperCase(),
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Description
+                    if (trip.summary.isNotEmpty) ...[
+                      const SizedBox(height: 20),
                       Text(
-                        '${trip.participantIds.length}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
+                        'About this trip',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        trip.summary,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          height: 1.5,
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-
-        // Trip Name Card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.card_travel,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        trip.tripName,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${trip.location.destination}, ${trip.location.country}',
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatDateRange(trip.startDate, trip.endDate),
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${trip.durationDays} days',
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Organizer Card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.person,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Organized by',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                      child: Text(
-                        trip.organizerName.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      trip.organizerName,
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Budget Card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.attach_money,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Budget',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '\$${trip.costPerPerson} per person',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (trip.totalCost > 0) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Total spent: \$${trip.totalCost}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Description Card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.description,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'About this trip',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  trip.summary,
-                  style: theme.textTheme.bodyLarge,
-                ),
-              ],
-            ),
-          ),
-        ),
+        
+        const SizedBox(height: 80), // Bottom padding for FAB
       ],
     );
   }
@@ -615,6 +514,143 @@ class _TripDetailsScreenState extends ConsumerState<TripDetailsScreen>
           ],
         ),
       ),
+    );
+  }
+
+  // Cover section for overview card
+  Widget _buildCoverSection(TripModel trip, ThemeData theme) {
+    // Show cover photo if available
+    if (trip.coverPhotoUrl != null && trip.coverPhotoUrl!.isNotEmpty) {
+      return Container(
+        height: 160,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: NetworkImage(trip.coverPhotoUrl!),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Colors.black.withValues(alpha: 0.3),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // Default gradient header with destination icon
+    return Container(
+      height: 120,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withValues(alpha: 0.8),
+            AppColors.primary.withValues(alpha: 0.6),
+          ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Pattern overlay
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _PatternPainter(),
+            ),
+          ),
+          // Center icon
+          Center(
+            child: Icon(
+              Icons.flight_takeoff,
+              size: 48,
+              color: Colors.white.withValues(alpha: 0.3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Info chip widget for quick stats
+  Widget _buildInfoChip(IconData icon, String text) {
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Detail row widget for full-width info
+  Widget _buildDetailRow(
+    IconData icon,
+    String label,
+    String value,
+    ThemeData theme, {
+    Widget? trailing,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (trailing != null) trailing,
+      ],
     );
   }
 
@@ -686,4 +722,29 @@ class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(_StickyTabBarDelegate oldDelegate) {
     return false;
   }
+}
+
+// Pattern painter for cover gradient
+class _PatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.05)
+      ..style = PaintingStyle.fill;
+
+    // Draw subtle diagonal pattern
+    const spacing = 30.0;
+    for (double i = -size.height; i < size.width + size.height; i += spacing) {
+      final path = Path()
+        ..moveTo(i, 0)
+        ..lineTo(i + size.height, size.height)
+        ..lineTo(i + size.height + 2, size.height)
+        ..lineTo(i + 2, 0)
+        ..close();
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

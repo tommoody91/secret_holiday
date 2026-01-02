@@ -17,8 +17,8 @@ import '../../features/home/presentation/screens/main_scaffold.dart';
 import '../../features/timeline/presentation/screens/add_trip_screen.dart';
 import '../../features/timeline/presentation/screens/edit_trip_screen.dart';
 import '../../features/timeline/presentation/screens/trip_details_screen.dart';
+import '../../features/timeline/presentation/screens/add_activity_screen.dart';
 import '../../features/timeline/data/models/trip_model.dart';
-import '../../features/debug/presentation/widgets/s3_test_widget.dart';
 
 /// Router configuration provider with auth state management
 /// Using keepAlive to prevent recreation on every navigation
@@ -207,12 +207,29 @@ final routerProvider = Provider<GoRouter>((ref) {
           return TripDetailsScreen(groupId: groupId, tripId: tripId);
         },
       ),
-
-      // Debug Routes
+      
+      // Add Activity Route
       GoRoute(
-        path: '/debug/s3-test',
-        name: 's3Test',
-        builder: (context, state) => const S3TestWidget(),
+        path: '/trip/:tripId/add-activity',
+        name: 'addActivity',
+        builder: (context, state) {
+          final tripId = state.pathParameters['tripId'];
+          if (tripId == null) {
+            throw Exception('Trip ID is required for adding an activity');
+          }
+          final extra = state.extra as Map<String, dynamic>;
+          final groupId = extra['groupId'] as String;
+          final dayNumber = extra['dayNumber'] as int;
+          final date = extra['date'] as DateTime;
+          final destination = extra['destination'] as String;
+          return AddActivityScreen(
+            groupId: groupId,
+            tripId: tripId,
+            dayNumber: dayNumber,
+            date: date,
+            destination: destination,
+          );
+        },
       ),
     ],
     errorBuilder: (context, state) => ErrorScreen(error: state.error),

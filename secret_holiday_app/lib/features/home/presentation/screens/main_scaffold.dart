@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secret_holiday_app/core/theme/app_colors.dart';
 import 'package:secret_holiday_app/features/home/presentation/widgets/app_drawer.dart';
 import 'package:secret_holiday_app/features/timeline/presentation/screens/timeline_screen.dart';
-import 'package:secret_holiday_app/features/map/presentation/screens/map_screen.dart';
-import 'package:secret_holiday_app/features/chat/presentation/screens/chat_screen.dart';
+import 'package:secret_holiday_app/features/map/presentation/screens/journey_map_screen.dart';
 import 'package:secret_holiday_app/features/planning/presentation/screens/planning_screen.dart';
 import 'package:secret_holiday_app/features/profile/presentation/screens/profile_screen.dart';
+import 'package:secret_holiday_app/features/groups/providers/group_provider.dart';
 
 class MainScaffold extends ConsumerStatefulWidget {
   const MainScaffold({super.key});
@@ -20,53 +20,71 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
   final List<Widget> _screens = const [
     TimelineScreen(),
-    MapScreen(),
-    ChatScreen(),
+    JourneyMapScreen(),
     PlanningScreen(),
     ProfileScreen(),
   ];
 
   final List<_NavigationItem> _navItems = const [
     _NavigationItem(
-      icon: Icons.timeline,
-      activeIcon: Icons.timeline,
-      label: 'Timeline',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: 'Home',
     ),
     _NavigationItem(
-      icon: Icons.map_outlined,
-      activeIcon: Icons.map,
-      label: 'Map',
+      icon: Icons.explore_outlined,
+      activeIcon: Icons.explore_rounded,
+      label: 'Journey',
     ),
     _NavigationItem(
-      icon: Icons.chat_bubble_outline,
-      activeIcon: Icons.chat_bubble,
-      label: 'Chat',
+      icon: Icons.auto_awesome_outlined,
+      activeIcon: Icons.auto_awesome,
+      label: 'AI Plan',
     ),
     _NavigationItem(
-      icon: Icons.psychology_outlined,
-      activeIcon: Icons.psychology,
-      label: 'Planning',
-    ),
-    _NavigationItem(
-      icon: Icons.person_outline,
-      activeIcon: Icons.person,
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
       label: 'Profile',
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selectedGroupAsync = ref.watch(selectedGroupDataProvider);
+    
     return Scaffold(
       appBar: AppBar(
-        title: Text(_navItems[_currentIndex].label),
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        title: selectedGroupAsync.when(
+          data: (group) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _navItems[_currentIndex].label,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (group != null)
+                Text(
+                  group.name,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+            ],
+          ),
+          loading: () => Text(_navItems[_currentIndex].label),
+          error: (_, __) => Text(_navItems[_currentIndex].label),
+        ),
         actions: [
-          // Settings button
+          // Notifications (coming soon)
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              _showSettingsComingSoon(context);
-            },
-            tooltip: 'Settings',
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () => _showComingSoon(context, 'Notifications'),
+            tooltip: 'Notifications',
           ),
         ],
       ),
@@ -77,66 +95,86 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
           ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: _navItems.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final isSelected = _currentIndex == index;
+                
+                return _buildNavItem(
+                  icon: isSelected ? item.activeIcon : item.icon,
+                  label: item.label,
+                  isSelected: isSelected,
+                  onTap: () => setState(() => _currentIndex = index),
+                );
+              }).toList(),
+            ),
           ),
-          items: _navItems.map((item) {
-            final index = _navItems.indexOf(item);
-            final isSelected = _currentIndex == index;
-            
-            return BottomNavigationBarItem(
-              icon: Icon(
-                isSelected ? item.activeIcon : item.icon,
-                size: 24,
-              ),
-              label: item.label,
-            );
-          }).toList(),
         ),
       ),
     );
   }
 
-  void _showSettingsComingSoon(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.settings, color: AppColors.primary),
-            SizedBox(width: 12),
-            Text('Settings'),
+            Icon(
+              icon,
+              size: 24,
+              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
-        content: const Text(
-          'App and group settings will be available soon. You can manage basic preferences and group details here.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+      ),
+    );
+  }
+
+  void _showComingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature coming soon!'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

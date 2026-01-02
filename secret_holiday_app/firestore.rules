@@ -33,7 +33,8 @@ service cloud.firestore {
       allow create: if isSignedIn();
       // Only group members can update groups
       allow update: if isSignedIn() && request.auth.uid in resource.data.memberIds;
-      allow delete: if false; // Don't allow deletion for now
+      // Only the group creator can delete the group
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.createdBy;
     }
     
     // Trips collection (subcollection of groups)
@@ -43,6 +44,16 @@ service cloud.firestore {
       // Group members can create trips
       allow create: if isGroupMember(groupId);
       // Trip organizer or admin can update
+      allow update: if isGroupMember(groupId);
+      allow delete: if isGroupMember(groupId);
+    }
+    
+    // Activities collection (subcollection of trips)
+    match /groups/{groupId}/trips/{tripId}/activities/{activityId} {
+      // Group members can read all activities
+      allow read: if isGroupMember(groupId);
+      // Group members can create/update/delete activities
+      allow create: if isGroupMember(groupId);
       allow update: if isGroupMember(groupId);
       allow delete: if isGroupMember(groupId);
     }

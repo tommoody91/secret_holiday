@@ -50,18 +50,21 @@ async def upload_photo(
     # Upload to S3
     try:
         file_content = await file.read()
-        url = await s3_service.upload_file(
+        s3_key = await s3_service.upload_file(
             file_content=file_content,
             key=s3_key,
             content_type=file.content_type,
         )
+        # Generate initial presigned URL for immediate use
+        url = await s3_service.get_presigned_url(s3_key)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
     
     return {
         "photo_id": photo_id,
         "trip_id": trip_id,
-        "url": url,
+        "s3_key": s3_key,  # Store this in DB - it never expires
+        "url": url,        # Presigned URL - valid for 24 hours
         "filename": file.filename,
         "uploaded_by": current_user.uid,
     }

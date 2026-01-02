@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 
 /// Primary button with consistent styling
 class PrimaryButton extends StatelessWidget {
@@ -19,17 +20,13 @@ class PrimaryButton extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     Widget child = isLoading
-        ? SizedBox(
+        ? const SizedBox(
             height: 20,
             width: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.onPrimary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           )
         : icon != null
@@ -38,25 +35,47 @@ class PrimaryButton extends StatelessWidget {
                 children: [
                   Icon(icon, size: 20),
                   const SizedBox(width: 8),
-                  Text(text),
+                  Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
                 ],
               )
-            : Text(text);
+            : Text(text, style: const TextStyle(fontWeight: FontWeight.w600));
     
     return SizedBox(
-      width: width,
-      height: 48,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: theme.colorScheme.onPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+      width: width ?? double.infinity,
+      height: 52,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: onPressed != null && !isLoading 
+                ? [AppColors.primary, AppColors.primaryLight]
+                : [Colors.grey.shade400, Colors.grey.shade300],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
           ),
-          elevation: 0,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: onPressed != null && !isLoading 
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
-        child: child,
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            elevation: 0,
+          ),
+          child: child,
+        ),
       ),
     );
   }
@@ -81,17 +100,13 @@ class SecondaryButton extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     Widget child = isLoading
         ? SizedBox(
             height: 20,
             width: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.primary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           )
         : icon != null
@@ -100,22 +115,23 @@ class SecondaryButton extends StatelessWidget {
                 children: [
                   Icon(icon, size: 20),
                   const SizedBox(width: 8),
-                  Text(text),
+                  Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
                 ],
               )
-            : Text(text);
+            : Text(text, style: const TextStyle(fontWeight: FontWeight.w600));
     
     return SizedBox(
-      width: width,
-      height: 48,
+      width: width ?? double.infinity,
+      height: 52,
       child: OutlinedButton(
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: theme.colorScheme.primary,
-          side: BorderSide(color: theme.colorScheme.primary),
+          foregroundColor: AppColors.primary,
+          side: BorderSide(color: AppColors.primary, width: 1.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
+          backgroundColor: Colors.white,
         ),
         child: child,
       ),
@@ -138,12 +154,10 @@ class AppTextButton extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        foregroundColor: theme.colorScheme.primary,
+        foregroundColor: AppColors.primary,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       child: icon != null
@@ -152,10 +166,10 @@ class AppTextButton extends StatelessWidget {
               children: [
                 Icon(icon, size: 18),
                 const SizedBox(width: 8),
-                Text(text),
+                Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
               ],
             )
-          : Text(text),
+          : Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
     );
   }
 }

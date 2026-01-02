@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080"
     
+    # Amadeus API (for flight/hotel searches)
+    AMADEUS_API_KEY: str = ""
+    AMADEUS_API_SECRET: str = ""
+    AMADEUS_BASE_URL: str = "https://test.api.amadeus.com"  # Use production URL when ready
+    
     @property
     def allowed_origins_list(self) -> list[str]:
         """Parse comma-separated origins into a list."""
